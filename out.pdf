@@ -1,14 +1,69 @@
 %PDF-1.7
 %¹¹¹¹¹¹¹¹
 
+1 0 obj
+<</F0 2 0 R>>
+endobj
+
+2 0 obj
+<</Type/Font
+/SubType/Type1
+/BaseFont/Helvetica>>
+endobj
+
+3 0 obj
+<</Type/Pages
+/Kids [ 4 0 R ]
+/MediaBox [ 0 0 595.303937007874 841.889763779528 ]
+/Count 1>>
+endobj
+
+4 0 obj
+<</Type/Page
+/Parent 3 0 R
+/MediaBox [ 0 0 595.303937007874 841.889763779528 ]
+/Contents 5 0 R
+/Resources 6 0 R>>
+endobj
+
+5 0 obj
+<</Length 99>>
+stream
+1 0.5 0 rg
+2 w
+1 j
+1 J
+[ 0 15 ] 0 d
+40 40 50 50 re
+b
+BT
+/F0 
+12 Tf
+400 400 Td
+(Hello World!) Tj
+ET
+
+endstream
+endobj
+
+6 0 obj
+<</Font 1 0 R>>
+endobj
+
+7 0 obj
+<</Type/Catalog
+/Pages 3 0 R
+/PageMode/UseOutlines
+/OpenAction [ 4 0 R /XYZ null null 0 ]
+/Lang(de-DE)>>
+endobj
 
 xref
 0 18
 0000000000 65535 f 
 trailer
-<</Size /18
-/Root /<class 'helper.PyDFObject'>
->>
+<</Size 18
+/Root 7 0 R>>
 startxref
 0
 

@@ -1,20 +1,32 @@
-id_counter:int = 1
-
-class PyDFObject:
-    def __init__(self) -> None:
-        global id_counter
-        self.id = id_counter
-        id_counter += 1
-
-    def __str__(self) -> str:
-        return f"{self.id} 0 R"
+from enum import Enum
 
 
+class LineCap(Enum):
+    Butt = 0
+    Round = 1
+    Square = 2
 
-class PyDFDict(dict):
-    def __str__(self) -> str:
-        ret = "<<"
-        for key, value in self.items():
-            ret += f"/{key} /{value}\n"
-        ret += ">>"
-        return ret
+
+class LineJoin(Enum):
+    Miter = 0
+    Round = 1
+    Bevel = 2
+
+
+class DrawType(Enum):
+    Stroke = "S\n"
+    CloseAndStroke = "s\n"
+    FillNonZero = "f\n"
+    FillOddEven = "f*\n"
+    FillStrokeNonZero = "B\n"
+    FillStrokeOddEven = "B*\n"
+    CloseFillStrokeNonZero = "b\n"
+    CloseFillStrokeOddEven = "b*\n"
+    NoOp = "n\n"
+
+
+def pdfify(to_convert) -> str:
+    if to_convert is None:
+        return "null"
+    else:
+        return str(to_convert)
