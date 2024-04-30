@@ -6,12 +6,12 @@ class PDF:
     header: str = "%PDF-1.7\n%¹¹¹¹¹¹¹¹\n\n"
     footer: str = "\n%%EOF"
 
-    def __init__(self, *, author: str | None = None) -> None:
+    def __init__(self, *, author: str | None = None,unit:PDFUnit=PDFUnit.Default) -> None:
         self.xref_pos = 0
         self.id_counter = 1
         self.objects: list[PDFObject] = []
         self.fonts = PDFFonts(file=self)
-        self.pages = PDFPages(self, 1)
+        self.pages = PDFPages(self,unit=unit.value, count=1)
         root_dict = {
             "Type": "Catalog",
             "Pages": self.pages,

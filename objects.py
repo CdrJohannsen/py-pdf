@@ -1,5 +1,3 @@
-from typing import Any
-
 from helper import *
 
 
@@ -143,10 +141,11 @@ ET
 
 
 class PDFPage(PDFDict):
-    def __init__(self, file, parent):
+    def __init__(self, file, parent,*,unit):
         PDFObject.__init__(self, file=file)
         self["Type"] = "Page"
         self["Parent"] = parent
+        self["UserUnit"] = unit
         self["MediaBox"] = PDFArray([0, 0, 595.303937007874, 841.889763779528])
         desc = PDFDict()
         self["Contents"] = PDFGraphic(desc, file=file)
@@ -159,12 +158,12 @@ class PDFPage(PDFDict):
 
 
 class PDFPages(PDFDict):
-    def __init__(self, file, count: int = 1) -> None:
+    def __init__(self, file,*,unit:float=1.0, count: int = 1) -> None:
         super().__init__(self, file=file)
         self.parent = file
         self["Type"] = "Pages"
         self["Kids"] = PDFArray()
         self["MediaBox"] = PDFArray([0, 0, 595.303937007874, 841.889763779528])
         for _ in range(count):
-            self["Kids"].append(PDFPage(file, self))
+            self["Kids"].append(PDFPage(file, self,unit=unit))
         self["Count"] = len(self["Kids"])

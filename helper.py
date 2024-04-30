@@ -24,6 +24,10 @@ class DrawType(Enum):
     CloseFillStrokeOddEven = "b*\n"
     NoOp = "n\n"
 
+class PDFUnit(Enum):
+    Default = 1.0
+    # Inches = 72.0
+    # Millimeter = 2.834645669
 
 def pdfify(to_convert) -> str:
     if to_convert is None:
