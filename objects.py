@@ -81,8 +81,9 @@ class PDFStream(PDFObject):
 
 
 class PDFFont(PDFDict):
-    def __init__(self, name: str, file=None):
+    def __init__(self, name: str, pdf_name: str, file=None):
         self.name = name
+        self.pdf_name = pdf_name
         PDFObject.__init__(self, file=file)
         self["Type"] = "Font"
         self["SubType"] = "Type1"
@@ -94,34 +95,10 @@ class PDFFonts(PDFDict):
         PDFObject.__init__(self, file=file)
         self.font_counter = 0
 
-    def add_font(self, name: str):
-        self[f"F{self.font_counter}"] = PDFFont(name, file=self.file)
-
-
-class PDFPage(PDFDict):
-    def __init__(self, file, parent):
-        PDFObject.__init__(self, file=file)
-        self["Type"] = "Page"
-        self["Parent"] = parent
-        self["MediaBox"] = PDFArray([0, 0, 595.303937007874, 841.889763779528])
-        desc = PDFDict()
-        self["Contents"] = PDFGraphic(desc, file=file)
-        self["Resources"] = PDFDict({"Font": file.fonts}, file=file)
-
-    def get_content(self) -> PDFStream:
-        return self["Contents"]
-
-
-class PDFPages(PDFDict):
-    def __init__(self, file, count: int = 1) -> None:
-        super().__init__(self, file=file)
-        self.parent = file
-        self["Type"] = "Pages"
-        self["Kids"] = PDFArray()
-        self["MediaBox"] = PDFArray([0, 0, 595.303937007874, 841.889763779528])
-        for _ in range(count):
-            self["Kids"].append(PDFPage(file, self))
-        self["Count"] = len(self["Kids"])
+    def add_font(self, name: str) -> PDFFont:
+        font = PDFFont(name, pdf_name=f"F{self.font_counter}", file=self.file)
+        self[f"F{self.font_counter}"] = font
+        return font
 
 
 class PDFGraphic(PDFStream):
@@ -155,11 +132,39 @@ class PDFGraphic(PDFStream):
     def draw(self, draw_type: DrawType):
         self.content += draw_type.value
 
-    def add_text(self, x, y, text, font, size=12):
+    def add_text(self, x: float, y: float, text: str, font: PDFFont, size: int = 12):
         self.content += f"""BT
-/{font} 
+/{font.pdf_name} 
 {size} Tf
 {x} {y} Td
 ({text}) Tj
 ET
 """
+
+
+class PDFPage(PDFDict):
+    def __init__(self, file, parent):
+        PDFObject.__init__(self, file=file)
+        self["Type"] = "Page"
+        self["Parent"] = parent
+        self["MediaBox"] = PDFArray([0, 0, 595.303937007874, 841.889763779528])
+        desc = PDFDict()
+        self["Contents"] = PDFGraphic(desc, file=file)
+        self["Resources"] = PDFDict(
+            {"Font": file.fonts, "ProcSet": PDFArray(["PDF", "Text", "ImageB", "ImageC", "ImageI"])}, file=file
+        )
+
+    def get_content(self) -> PDFGraphic:
+        return self["Contents"]
+
+
+class PDFPages(PDFDict):
+    def __init__(self, file, count: int = 1) -> None:
+        super().__init__(self, file=file)
+        self.parent = file
+        self["Type"] = "Pages"
+        self["Kids"] = PDFArray()
+        self["MediaBox"] = PDFArray([0, 0, 595.303937007874, 841.889763779528])
+        for _ in range(count):
+            self["Kids"].append(PDFPage(file, self))
+        self["Count"] = len(self["Kids"])

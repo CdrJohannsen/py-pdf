@@ -28,5 +28,7 @@ class DrawType(Enum):
 def pdfify(to_convert) -> str:
     if to_convert is None:
         return "null"
+    elif type(to_convert) == str:
+        return f"/{to_convert}"
     else:
         return str(to_convert)

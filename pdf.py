@@ -1,16 +1,16 @@
 from objects import *
+from datetime import datetime
 
 
 class PDF:
     header: str = "%PDF-1.7\n%¹¹¹¹¹¹¹¹\n\n"
     footer: str = "\n%%EOF"
 
-    def __init__(self) -> None:
+    def __init__(self, *, author: str | None = None) -> None:
         self.xref_pos = 0
         self.id_counter = 1
         self.objects: list[PDFObject] = []
         self.fonts = PDFFonts(file=self)
-        self.fonts.add_font("Helvetica")
         self.pages = PDFPages(self, 1)
         root_dict = {
             "Type": "Catalog",
@@ -19,7 +19,15 @@ class PDF:
             "OpenAction": PDFArray([self.pages["Kids"][0], "/XYZ", None, None, 0]),
             "Lang": PDFString("de-DE"),
         }
-        self.trailerdict = PDFDict({"Size": 18, "Root": PDFDict(root_dict, self)})
+        info_dict = {
+            "Producer": PDFString("Py-PDF"),
+            "Creator": PDFString("Py-PDF"),
+            "CreationDate": PDFString(datetime.now().strftime("D:%Y%m%d%H%M%S")),
+            "ModDate": PDFString(datetime.now().strftime("D:%Y%m%d%H%M%S")),
+        }
+        if author:
+            info_dict["Author"] = PDFString(author)
+        self.trailerdict = PDFDict({"Size": 18, "Root": PDFDict(root_dict, self), "Info": PDFDict(info_dict, self)})
 
     def __str__(self) -> str:
         out = self.header
