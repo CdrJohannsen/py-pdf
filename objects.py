@@ -1,3 +1,6 @@
+import zlib
+from PIL import Image
+
 from helper import *
 
 
@@ -41,6 +44,8 @@ class PDFDict(PDFObject, dict):
                 ret += f"/{key}/{value}\n"
             elif type(value) == PDFString:
                 ret += f"/{key}{value}\n"
+            elif type(value) == bool:
+                ret += f"/{key} {str(value).lower()}\n"
             else:
                 ret += f"/{key} {value}\n"
         ret = ret.strip() + ">>"
@@ -68,13 +73,17 @@ class PDFArray(list, PDFObject):
 
 
 class PDFStream(PDFObject):
-    def __init__(self, desc: PDFDict, *, file) -> None:
+    def __init__(self, desc: PDFDict = PDFDict(), *, file) -> None:
         super().__init__(file=file)
         self.desc = desc
         self.content = ""
+        self.compress = False
 
     def _get_str(self) -> str:
         self.desc["Length"] = len(self.content)
+        if self.compress:
+            self.desc["Filter"] = "FlateDecode"
+            self.content = zlib.compress(bytes(self.content, encoding="latin-1")).decode("latin-1")
         return f"{self.desc._get_str()}\nstream\n{self.content}\nendstream"
 
 
@@ -96,7 +105,36 @@ class PDFFonts(PDFDict):
     def add_font(self, name: str) -> PDFFont:
         font = PDFFont(name, pdf_name=f"F{self.font_counter}", file=self.file)
         self[f"F{self.font_counter}"] = font
+        self.font_counter += 1
         return font
+
+
+class PDFImage(PDFStream):
+    def __init__(self, path: str, pdf_name: str, file=None):
+        image = Image.open(path)
+        self.pdf_name = pdf_name
+        PDFStream.__init__(self, file=file)
+        self.compress = True
+        self.content = image.convert("RGB").tobytes().decode(encoding="latin-1")
+        self.desc["Type"] = "XObject"
+        self.desc["Subtype"] = "Image"
+        self.desc["Width"] = image.width
+        self.desc["Height"] = image.height
+        self.desc["BitsPerComponent"] = 8
+        self.desc["ColorSpace"] = "DeviceRGB"
+        self.desc["Interpolate"] = True
+
+
+class PDFImages(PDFDict):
+    def __init__(self, file=None):
+        PDFObject.__init__(self, file=file)
+        self.image_counter = 0
+
+    def add_image(self, path: str) -> PDFImage:
+        image = PDFImage(path, pdf_name=f"Im{self.image_counter}", file=self.file)
+        self[f"Im{self.image_counter}"] = image
+        self.image_counter += 1
+        return image
 
 
 class PDFGraphic(PDFStream):
@@ -106,8 +144,20 @@ class PDFGraphic(PDFStream):
     def load_state(self):
         self.content += "Q\n"
 
-    def set_color(self, rgb: tuple[float, float, float]):
-        self.content += f"{rgb[0]} {rgb[1]} {rgb[2]} rg\n"
+    def set_matrix(self, matrix: tuple[float, float, float, float, float, float]):
+        self.content += f"{matrix[0]} {matrix[1]} {matrix[2]} {matrix[3]} {matrix[4]} {matrix[5]} cm\n"
+
+    def set_color_rgb(self, rgb: tuple[float, float, float], stroke: bool = False):
+        self.content += f"{rgb[0]} {rgb[1]} {rgb[2]} "
+        self.content += "RG\n" if stroke else "rg\n"
+
+    def set_color_gray(self, gray: float, stroke: bool = False):
+        self.content += f"{gray} "
+        self.content += "G\n" if stroke else "g\n"
+
+    def set_color_cmyk(self, cmyk: tuple[float, float, float, float], stroke: bool = False):
+        self.content += f"{cmyk[0]} {cmyk[1]} {cmyk[2]} {cmyk[3]} "
+        self.content += "K\n" if stroke else "k\n"
 
     def set_width(self, width):
         self.content += f"{width} w\n"
@@ -139,10 +189,32 @@ class PDFGraphic(PDFStream):
 ET
 """
 
+    def start_path(self, start: tuple[float, float]):
+        self.content += f"{start[0]} {start[1]} m\n"
+
+    def append_line(self, start: tuple[float, float]):
+        self.content += f"{start[0]} {start[1]} l\n"
+
+    def append_bezier(self, control1: tuple[float, float], control2: tuple[float, float], end: tuple[float, float]):
+        self.content += f"{control1[0]} {control1[1]} {control2[0]} {control2[1]} {end[0]} {end[1]} c\n"
+
+    def append_bezier_start(self, control: tuple[float, float], end: tuple[float, float]):
+        self.content += f"{end[0]} {end[1]} {control[0]} {control[1]} v\n"
+
+    def append_bezier_end(self, control: tuple[float, float], end: tuple[float, float]):
+        self.content += f"{end[0]} {end[1]} {control[0]} {control[1]} y\n"
+
+    def close_path(self):
+        self.content += "h\n"
+
+    def add_image(self, image: PDFImage):
+        self.content += f"/{image.pdf_name} Do\n"
+
 
 class PDFPage(PDFDict):
-    def __init__(self, file, parent,*,unit):
+    def __init__(self, file, parent, *, unit):
         PDFObject.__init__(self, file=file)
+        self.images = PDFImages(file=file)
         self["Type"] = "Page"
         self["Parent"] = parent
         self["UserUnit"] = unit
@@ -150,20 +222,28 @@ class PDFPage(PDFDict):
         desc = PDFDict()
         self["Contents"] = PDFGraphic(desc, file=file)
         self["Resources"] = PDFDict(
-            {"Font": file.fonts, "ProcSet": PDFArray(["PDF", "Text", "ImageB", "ImageC", "ImageI"])}, file=file
+            {
+                "Font": file.fonts,
+                "XObject": self.images,
+                "ProcSet": PDFArray(["PDF", "Text", "ImageB", "ImageC", "ImageI"]),
+            },
+            file=file,
         )
 
     def get_content(self) -> PDFGraphic:
         return self["Contents"]
 
+    def get_images(self) -> PDFImages:
+        return self.images
+
 
 class PDFPages(PDFDict):
-    def __init__(self, file,*,unit:float=1.0, count: int = 1) -> None:
+    def __init__(self, file, *, unit: float = 1.0, count: int = 1) -> None:
         super().__init__(self, file=file)
         self.parent = file
         self["Type"] = "Pages"
         self["Kids"] = PDFArray()
         self["MediaBox"] = PDFArray([0, 0, 595.303937007874, 841.889763779528])
         for _ in range(count):
-            self["Kids"].append(PDFPage(file, self,unit=unit))
+            self["Kids"].append(PDFPage(file, self, unit=unit))
         self["Count"] = len(self["Kids"])

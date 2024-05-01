@@ -1,17 +1,26 @@
-from objects import *
 from datetime import datetime
+
+from objects import *
 
 
 class PDF:
     header: str = "%PDF-1.7\n%¹¹¹¹¹¹¹¹\n\n"
     footer: str = "\n%%EOF"
 
-    def __init__(self, *, author: str | None = None,unit:PDFUnit=PDFUnit.Default) -> None:
+    def __init__(
+        self,
+        *,
+        title: str | None = None,
+        subject: str | None = None,
+        keywords: str | None = None,
+        author: str | None = None,
+        unit: PDFUnit = PDFUnit.Default,
+    ) -> None:
         self.xref_pos = 0
         self.id_counter = 1
         self.objects: list[PDFObject] = []
         self.fonts = PDFFonts(file=self)
-        self.pages = PDFPages(self,unit=unit.value, count=1)
+        self.pages = PDFPages(self, unit=unit.value, count=1)
         root_dict = {
             "Type": "Catalog",
             "Pages": self.pages,
@@ -21,10 +30,15 @@ class PDF:
         }
         info_dict = {
             "Producer": PDFString("Py-PDF"),
-            "Creator": PDFString("Py-PDF"),
             "CreationDate": PDFString(datetime.now().strftime("D:%Y%m%d%H%M%S")),
             "ModDate": PDFString(datetime.now().strftime("D:%Y%m%d%H%M%S")),
         }
+        if title:
+            info_dict["Title"] = PDFString(title)
+        if subject:
+            info_dict["Subject"] = PDFString(subject)
+        if keywords:
+            info_dict["Keywords"] = PDFString(keywords)
         if author:
             info_dict["Author"] = PDFString(author)
         self.trailerdict = PDFDict({"Size": 18, "Root": PDFDict(root_dict, self), "Info": PDFDict(info_dict, self)})
@@ -51,7 +65,7 @@ startxref
 """
 
     def write(self, file):
-        with open(file, "w") as f:
+        with open(file, "w", encoding="latin-1") as f:
             f.write(self.__str__())
 
     def get_page(self, index: int) -> PDFPage:
