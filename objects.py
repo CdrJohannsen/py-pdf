@@ -1,4 +1,6 @@
 import zlib
+from typing import Any
+
 from PIL import Image
 
 from helper import *
@@ -26,6 +28,10 @@ class PDFObject:
     def _get_str(self) -> str: ...
 
 
+class PDFColor(PDFObject):
+    pdf_name: str
+
+
 class PDFDict(PDFObject, dict):
     def __init__(self, to_dict={}, file=None):
         dict.__init__(self, to_dict)
@@ -44,6 +50,8 @@ class PDFDict(PDFObject, dict):
                 ret += f"/{key}/{value}\n"
             elif type(value) == PDFString:
                 ret += f"/{key}{value}\n"
+            elif isinstance(value, Enum):
+                ret += f"/{key} {value.value}\n"
             elif type(value) == bool:
                 ret += f"/{key} {str(value).lower()}\n"
             else:
@@ -72,6 +80,37 @@ class PDFArray(list, PDFObject):
         return f"[ {' '.join([pdfify(i) for i in self])} ]"
 
 
+class PDFFunction(PDFDict):
+    def __init__(self,function_type:FunctionType = FunctionType.Exponential, *_, file=None):
+        super().__init__(file=file)
+        self["FunctionType"] = function_type
+        self["Domain"] = PDFArray([0,1])
+        match function_type:
+            case FunctionType.Exponential:
+                self["N"] = 1
+            case _:
+                raise NotImplementedError
+
+
+class PDFColorSpace(PDFArray):
+    def __init__(self, spaces: list, pdf_name: str, file=None):
+        self.pdf_name = pdf_name
+        super().__init__()
+        self.extend(spaces)
+
+
+class PDFColorSpaces(PDFDict):
+    def __init__(self, file=None):
+        PDFObject.__init__(self, file=file)
+        self.cs_counter = 1
+
+    def add_colorspace(self, spaces: list) -> PDFColorSpace:
+        colorspace = PDFColorSpace(spaces, f"Cs{self.cs_counter}")
+        self[f"Cs{self.cs_counter}"] = colorspace
+        self.cs_counter += 1
+        return colorspace
+
+
 class PDFStream(PDFObject):
     def __init__(self, desc: PDFDict | None = None, *, file) -> None:
         super().__init__(file=file)
@@ -86,9 +125,7 @@ class PDFStream(PDFObject):
         self.desc["Length"] = len(self.content)
         if self.compress:
             self.desc["Filter"] = "FlateDecode"
-            self.content = zlib.compress(
-                bytes(self.content, encoding="latin-1")
-            ).decode("latin-1")
+            self.content = zlib.compress(bytes(self.content, encoding="latin-1")).decode("latin-1")
         return f"{self.desc._get_str()}\nstream\n{self.content}\nendstream"
 
 
@@ -105,7 +142,7 @@ class PDFFont(PDFDict):
 class PDFFonts(PDFDict):
     def __init__(self, file=None):
         PDFObject.__init__(self, file=file)
-        self.font_counter = 0
+        self.font_counter = 1
 
     def add_font(self, name: str) -> PDFFont:
         font = PDFFont(name, pdf_name=f"F{self.font_counter}", file=self.file)
@@ -133,7 +170,7 @@ class PDFImage(PDFStream):
 class PDFImages(PDFDict):
     def __init__(self, file=None):
         PDFObject.__init__(self, file=file)
-        self.image_counter = 0
+        self.image_counter = 1
 
     def add_image(self, path: str) -> PDFImage:
         image = PDFImage(path, pdf_name=f"Im{self.image_counter}", file=self.file)
@@ -160,11 +197,23 @@ class PDFGraphic(PDFStream):
         self.content += f"{gray} "
         self.content += "G\n" if stroke else "g\n"
 
-    def set_color_cmyk(
-        self, cmyk: tuple[float, float, float, float], stroke: bool = False
-    ):
+    def set_color_cmyk(self, cmyk: tuple[float, float, float, float], stroke: bool = False):
         self.content += f"{cmyk[0]} {cmyk[1]} {cmyk[2]} {cmyk[3]} "
         self.content += "K\n" if stroke else "k\n"
+
+    def set_color(self, c_type: PDFColor, color: tuple | None = None, stroke: bool = False):
+        if color is not None:
+            self.content += " ".join([str(i) for i in color])
+            self.content += " "
+        self.content += f"/{c_type.pdf_name} "
+        self.content += "SCN\n" if stroke else "scn\n"
+
+    def set_colorspace(self, space: str | PDFColorSpace, stroke: bool = False):
+        if isinstance(space, PDFColorSpace):
+            self.content += f"/{space.pdf_name} "
+        else:
+            self.content += f"/{space} "
+        self.content += "CS\n" if stroke else "cs\n"
 
     def set_width(self, width):
         self.content += f"{width} w\n"
@@ -210,9 +259,7 @@ ET
     ):
         self.content += f"{control1[0]} {control1[1]} {control2[0]} {control2[1]} {end[0]} {end[1]} c\n"
 
-    def append_bezier_start(
-        self, control: tuple[float, float], end: tuple[float, float]
-    ):
+    def append_bezier_start(self, control: tuple[float, float], end: tuple[float, float]):
         self.content += f"{end[0]} {end[1]} {control[0]} {control[1]} v\n"
 
     def append_bezier_end(self, control: tuple[float, float], end: tuple[float, float]):
@@ -226,13 +273,20 @@ ET
 
 
 class PDFShading(PDFDict):
-    def __init__(self, shading_type: ShadingType, file=None):
-        super().__init__(file)
+    def __init__(self, shading_type: ShadingType, file=None, **kwargs):
+        super().__init__(file=file)
         self["ShadingType"] = shading_type
         self["ColorSpace"] = "DeviceRGB"
+        match shading_type:
+            case ShadingType.Function:
+                ...
+            case ShadingType.Axial:
+                self["Coords"] = kwargs["coords"]
+                self["Domain"] = kwargs.get("domain", PDFArray([0, 1]))
+                self["Function"] = kwargs["function"]
 
 
-class PDFPattern(PDFStream):
+class PDFPattern(PDFGraphic, PDFColor):
     def __init__(self, file=None):
         super().__init__(file=file)
         self.desc["Type"] = "Pattern"
@@ -242,29 +296,40 @@ class PDFPattern(PDFStream):
 
 
 class PDFPatternShading(PDFPattern):
-    def __init__(self, file=None):
-        super().__init__(file=file)
-        self.desc["PatternType"] = PatternType.Shading.value
-        self.desc["Shading"] = PDFShading(ShadingType.Axial, file=file)
+    def __init__(self, shading_type: ShadingType, file=None, **kwargs):
+        PDFStream.__init__(self, file=file)
+        PDFPattern.__init__(self)
+        self.export_seperate = True
+        self.desc["PatternType"] = PatternType.Shading
+        self.desc["Shading"] = PDFShading(shading_type, file=file, **kwargs)
 
 
 class PDFPatternTiling(PDFPattern):
-    def __init__(self, box: PDFArray, file=None):
-        PDFPattern.__init__(self)
+    def __init__(
+        self,
+        box: PDFArray,
+        xstep: int | None = None,
+        ystep: int | None = None,
+        paint_type: PaintType = PaintType.Coloured,
+        tiling_type: TilingType = TilingType.NoDistortion,
+        file=None,
+    ):
         PDFStream.__init__(self, file=file)
-        self.desc["PatternType"] = PatternType.Tiling.value
-        self.desc["PaintType"] = PaintType.Coloured.value
-        self.desc["TilingType"] = TilingType.ConstantSpacing.value
+        PDFPattern.__init__(self)
+        self.export_seperate = True
+        self.desc["PatternType"] = PatternType.Tiling
+        self.desc["PaintType"] = paint_type
+        self.desc["TilingType"] = tiling_type
         self.desc["BBox"] = box
-        self.desc["XStep"] = box[2]
-        self.desc["YStep"] = box[3]
-        self.desc["Resources"] = PDFDict()
+        self.desc["XStep"] = xstep if xstep is not None else box[2]
+        self.desc["YStep"] = ystep if ystep is not None else box[3]
+        self.desc["Resources"] = PDFDict(file=file)
 
 
 class PDFPatterns(PDFDict):
     def __init__(self, file=None):
         PDFObject.__init__(self, file=file)
-        self.pattern_counter = 0
+        self.pattern_counter = 1
 
     def add_pattern(self, pattern: PDFPattern):
         pattern.set_pdf_name(f"P{self.pattern_counter}")
@@ -277,6 +342,7 @@ class PDFPage(PDFDict):
         PDFObject.__init__(self, file=file)
         self.images = PDFImages(file=file)
         self.patterns = PDFPatterns(file=file)
+        self.colorspaces = PDFColorSpaces(file=file)
         self["Type"] = "Page"
         self["Parent"] = parent
         self["UserUnit"] = unit
@@ -288,6 +354,7 @@ class PDFPage(PDFDict):
                 "Font": file.fonts,
                 "XObject": self.images,
                 "Pattern": self.patterns,
+                "ColorSpace": self.colorspaces,
                 "ProcSet": PDFArray(["PDF", "Text", "ImageB", "ImageC", "ImageI"]),
             },
             file=file,
@@ -301,6 +368,9 @@ class PDFPage(PDFDict):
 
     def get_patterns(self) -> PDFPatterns:
         return self.patterns
+
+    def get_colorspaces(self) -> PDFColorSpaces:
+        return self.colorspaces
 
 
 class PDFPages(PDFDict):

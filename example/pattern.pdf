@@ -1,0 +1,134 @@
+%PDF-1.7
+%更更更更
+
+2 0 obj
+<</Type/Pages
+/Kids [ 5 0 R ]
+/MediaBox [ 0 0 595.303937007874 841.889763779528 ]
+/Count 1>>
+endobj
+
+
+8 0 obj
+<</Type/Catalog
+/Pages 2 0 R
+/PageMode/UseOutlines
+/OpenAction [ 3 0 R /XYZ null null 0 ]
+/Lang(de-DE)>>
+endobj
+
+9 0 obj
+<</Producer(Py-PDF)
+/CreationDate(D:20240502182054)
+/ModDate(D:20240502182054)
+/Subject(Test Page)
+/Keywords(Test,Hello World)
+/Author(Cdr_Johannsen)>>
+endobj
+
+5 0 obj % Page object
+<< /Type /Page
+/Parent 2 0 R
+/Resources 10 0 R
+/Contents 30 0 R
+/CropBox [ 0 0 225 225 ]
+>>
+endobj
+10 0 obj % Resource dictionary for page
+<< /Pattern << /P1 15 0 R >>
+>>
+
+endobj
+15 0 obj % Pattern definition
+<< /Type /Pattern
+/PatternType 1 % Tiling pattern
+/PaintType 1 % Coloured
+/TilingType 2
+/BBox [ 0 0 100 100 ]
+/XStep 100
+/YStep 100
+/Resources 16 0 R
+/Matrix [ 0.4 0.0 0.0 0.4 0.0 0.0 ]
+/Length 183
+>>
+stream
+BT % Begin text object
+/F1 1 Tf % Set text font and size
+64 0 0 64 7.1771 2.4414 Tm % Set text matrix
+0 Tc % Set character spacing
+0 Tw % Set word spacing
+1.0 0.0 0.0 rg % Set nonstroking colour to red
+( \001 ) Tj % Show spade glyph
+0.7478 -0.007 TD % Move text position
+0.0 1.0 0.0 rg % Set nonstroking colour to green
+( \002 ) Tj % Show heart glyph
+-0.7323 0.7813 TD % Move text position
+0.0 0.0 1.0 rg % Set nonstroking colour to blue
+( \003 ) Tj % Show diamond glyph
+0.6913 0.007 TD % Move text position
+0.0 0.0 0.0 rg % Set nonstroking colour to black
+( \004 ) Tj % Show club glyph
+ET % End text object
+endstream
+endobj
+16 0 obj % Resource dictionary for pattern
+<< /Font << /F1 20 0 R >>
+>>
+endobj
+20 0 obj % Font for pattern
+<< /Type /Font
+/Subtype /Type1
+/Encoding 21 0 R
+/BaseFont /ZapfDingbats
+>>
+endobj
+21 0 obj % Font encoding
+<< /Type /Encoding
+/Differences [ 1 /a109 /a110 /a111 /a112 ]
+>>
+endobj
+30 0 obj % Contents of page
+<< /Length 1252 >>
+stream
+0.0 G % Set stroking colour to black
+1.0 1.0 0.0 rg % Set nonstroking colour to yellow
+25 175 175 -150 re % Construct rectangular path
+f % Fill path
+/Pattern cs % Set pattern colour space
+/P1 scn % Set pattern as nonstroking colour
+99.92 49.92 m % Start new path
+99.92 77.52 77.52 99.92 49.92 99.92 c % Construct lower-left circle
+22.32 99.92 -0.08 77.52 -0.08 49.92 c
+-0.08 22.32 22.32 -0.08 49.92 -0.08 c
+77.52 -0.08 99.92 22.32 99.92 49.92 c
+B % Fill and stroke path
+224.96 49.92 m % Start new path
+224.96 77.52 202.56 99.92 174.96 99.92 c % Construct lower-right circle
+147.36 99.92 124.96 77.52 124.96 49.92 c
+124.96 22.32 147.36 -0.08 174.96 -0.08 c
+202.56 -0.08 224.96 22.32 224.96 49.92 c
+B % Fill and stroke path
+87.56 201.70 m % Start new path
+63.66 187.90 55.46 157.32 69.26 133.40 c % Construct upper circle
+83.06 109.50 113.66 101.30 137.56 115.10 c
+161.46 128.90 169.66 159.50 155.86 183.40 c
+142.06 207.30 111.46 215.50 87.56 201.70 c
+B % Fill and stroke path
+50 50 m % Start new path
+175 50 l % Construct triangular path
+112.5 158.253 l
+b % Close, fill, and stroke path
+endstream
+endobj
+
+xref
+0 18
+0000000000 65535 f 
+trailer
+<</Size 18
+/Root 8 0 R
+/Info 9 0 R>>
+startxref
+0
+
+%%EOF

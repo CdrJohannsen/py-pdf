@@ -25,13 +25,22 @@ class DrawType(Enum):
     NoOp = "n\n"
 
 
+class FunctionType(Enum):
+    Sampled = 0
+    Exponential = 2
+    Stitching = 3
+    PostScript = 4
+
+
 class PatternType(Enum):
     Tiling = 1
     Shading = 2
 
+
 class PaintType(Enum):
     Coloured = 1
     Uncoloured = 2
+
 
 class TilingType(Enum):
     ConstantSpacing = 1

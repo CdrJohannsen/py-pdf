@@ -25,7 +25,7 @@ class PDF:
             "Type": "Catalog",
             "Pages": self.pages,
             "PageMode": "UseOutlines",
-            "OpenAction": PDFArray([self.pages["Kids"][0], "/XYZ", None, None, 0]),
+            "OpenAction": PDFArray([self.pages["Kids"][0], "XYZ", None, None, 0]),
             "Lang": PDFString("de-DE"),
         }
         info_dict = {
