@@ -73,9 +73,12 @@ class PDFArray(list, PDFObject):
 
 
 class PDFStream(PDFObject):
-    def __init__(self, desc: PDFDict = PDFDict(), *, file) -> None:
+    def __init__(self, desc: PDFDict | None = None, *, file) -> None:
         super().__init__(file=file)
-        self.desc = desc
+        if desc:
+            self.desc = desc
+        else:
+            self.desc = PDFDict()
         self.content = ""
         self.compress = False
 
@@ -83,7 +86,9 @@ class PDFStream(PDFObject):
         self.desc["Length"] = len(self.content)
         if self.compress:
             self.desc["Filter"] = "FlateDecode"
-            self.content = zlib.compress(bytes(self.content, encoding="latin-1")).decode("latin-1")
+            self.content = zlib.compress(
+                bytes(self.content, encoding="latin-1")
+            ).decode("latin-1")
         return f"{self.desc._get_str()}\nstream\n{self.content}\nendstream"
 
 
@@ -155,7 +160,9 @@ class PDFGraphic(PDFStream):
         self.content += f"{gray} "
         self.content += "G\n" if stroke else "g\n"
 
-    def set_color_cmyk(self, cmyk: tuple[float, float, float, float], stroke: bool = False):
+    def set_color_cmyk(
+        self, cmyk: tuple[float, float, float, float], stroke: bool = False
+    ):
         self.content += f"{cmyk[0]} {cmyk[1]} {cmyk[2]} {cmyk[3]} "
         self.content += "K\n" if stroke else "k\n"
 
@@ -195,10 +202,17 @@ ET
     def append_line(self, start: tuple[float, float]):
         self.content += f"{start[0]} {start[1]} l\n"
 
-    def append_bezier(self, control1: tuple[float, float], control2: tuple[float, float], end: tuple[float, float]):
+    def append_bezier(
+        self,
+        control1: tuple[float, float],
+        control2: tuple[float, float],
+        end: tuple[float, float],
+    ):
         self.content += f"{control1[0]} {control1[1]} {control2[0]} {control2[1]} {end[0]} {end[1]} c\n"
 
-    def append_bezier_start(self, control: tuple[float, float], end: tuple[float, float]):
+    def append_bezier_start(
+        self, control: tuple[float, float], end: tuple[float, float]
+    ):
         self.content += f"{end[0]} {end[1]} {control[0]} {control[1]} v\n"
 
     def append_bezier_end(self, control: tuple[float, float], end: tuple[float, float]):
@@ -211,10 +225,58 @@ ET
         self.content += f"/{image.pdf_name} Do\n"
 
 
+class PDFShading(PDFDict):
+    def __init__(self, shading_type: ShadingType, file=None):
+        super().__init__(file)
+        self["ShadingType"] = shading_type
+        self["ColorSpace"] = "DeviceRGB"
+
+
+class PDFPattern(PDFStream):
+    def __init__(self, file=None):
+        super().__init__(file=file)
+        self.desc["Type"] = "Pattern"
+
+    def set_pdf_name(self, name: str):
+        self.pdf_name = name
+
+
+class PDFPatternShading(PDFPattern):
+    def __init__(self, file=None):
+        super().__init__(file=file)
+        self.desc["PatternType"] = PatternType.Shading.value
+        self.desc["Shading"] = PDFShading(ShadingType.Axial, file=file)
+
+
+class PDFPatternTiling(PDFPattern):
+    def __init__(self, box: PDFArray, file=None):
+        PDFPattern.__init__(self)
+        PDFStream.__init__(self, file=file)
+        self.desc["PatternType"] = PatternType.Tiling.value
+        self.desc["PaintType"] = PaintType.Coloured.value
+        self.desc["TilingType"] = TilingType.ConstantSpacing.value
+        self.desc["BBox"] = box
+        self.desc["XStep"] = box[2]
+        self.desc["YStep"] = box[3]
+        self.desc["Resources"] = PDFDict()
+
+
+class PDFPatterns(PDFDict):
+    def __init__(self, file=None):
+        PDFObject.__init__(self, file=file)
+        self.pattern_counter = 0
+
+    def add_pattern(self, pattern: PDFPattern):
+        pattern.set_pdf_name(f"P{self.pattern_counter}")
+        self[f"P{self.pattern_counter}"] = pattern
+        self.pattern_counter += 1
+
+
 class PDFPage(PDFDict):
     def __init__(self, file, parent, *, unit):
         PDFObject.__init__(self, file=file)
         self.images = PDFImages(file=file)
+        self.patterns = PDFPatterns(file=file)
         self["Type"] = "Page"
         self["Parent"] = parent
         self["UserUnit"] = unit
@@ -225,6 +287,7 @@ class PDFPage(PDFDict):
             {
                 "Font": file.fonts,
                 "XObject": self.images,
+                "Pattern": self.patterns,
                 "ProcSet": PDFArray(["PDF", "Text", "ImageB", "ImageC", "ImageI"]),
             },
             file=file,
@@ -235,6 +298,9 @@ class PDFPage(PDFDict):
 
     def get_images(self) -> PDFImages:
         return self.images
+
+    def get_patterns(self) -> PDFPatterns:
+        return self.patterns
 
 
 class PDFPages(PDFDict):

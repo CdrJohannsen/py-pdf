@@ -24,10 +24,36 @@ class DrawType(Enum):
     CloseFillStrokeOddEven = "b*\n"
     NoOp = "n\n"
 
+
+class PatternType(Enum):
+    Tiling = 1
+    Shading = 2
+
+class PaintType(Enum):
+    Coloured = 1
+    Uncoloured = 2
+
+class TilingType(Enum):
+    ConstantSpacing = 1
+    NoDistortion = 2
+    ConstantSpacingFast = 3
+
+
+class ShadingType(Enum):
+    Function = 1
+    Axial = 2
+    Radial = 3
+    FreeForm = 4
+    LatticeForm = 5
+    Coons = 6
+    Tensor = 7
+
+
 class PDFUnit(Enum):
     Default = 1.0
     # Inches = 72.0
     # Millimeter = 2.834645669
+
 
 def pdfify(to_convert) -> str:
     if to_convert is None:
