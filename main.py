@@ -71,7 +71,7 @@ def main():
     content.save_state()
 
     shading = PDFPatternShading(
-        shading_type=ShadingType.Axial, coords=PDFArray([0, 0, 50, 50]), function=PDFFunction(file=pdf), file=pdf
+        shading_type=ShadingType.Axial, coords=PDFArray([0, 0, 1, 0]), function=PDFFunction(file=pdf), file=pdf
     )
     patterns.add_pattern(shading)
     content.set_colorspace("Pattern")
