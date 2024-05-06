@@ -56,9 +56,7 @@ def main():
     content.save_state()
     cs = page.get_colorspaces()
     rgb = cs.add_colorspace(["Pattern", "DeviceRGB"])
-    gray_tiling = PDFPatternTiling(
-        PDFArray([0, 0, 20, 20]), paint_type=PaintType.Uncoloured, file=pdf
-    )
+    gray_tiling = PDFPatternTiling(PDFArray([0, 0, 20, 20]), paint_type=PaintType.Uncoloured, file=pdf)
     gray_tiling.save_state()
     gray_tiling.set_width(2)
     gray_tiling.add_rect(5, 5, 10, 10)
@@ -70,20 +68,173 @@ def main():
     content.add_rect(200, 300, 100, 100)
     content.draw(DrawType.FillStrokeNonZero)
     content.load_state()
-    content.save_state()
 
-    shading = PDFPatternShading(
-        shading_type=ShadingType.Radial,
-        coords=PDFArray([0, 0, 1, 0, 0, 50]),
-        function=PDFFunction(file=pdf),
-        matrix=PDFArray([0.50002, 0, 0, 0.500021, 224.389, 397.414]),
+    content.save_state()
+    function_shading = PDFPatternShading(
+        shading=PDFShadingFunction(
+            function=PDFFunctionSampled(size=PDFArray([255]), bits_per_sample=8, samples=bytes([]), file=pdf),
+            file=pdf,
+        ),
         file=pdf,
     )
-    patterns.add_pattern(shading)
+    patterns.add_pattern(function_shading)
     content.set_colorspace("Pattern")
-    content.set_color(shading)
+    content.set_color(function_shading)
+    content.add_rect(0, 500, 100, 100)
+    content.draw(DrawType.FillStrokeNonZero)
+    content.load_state()
+
+    content.save_state()
+    radial_shading = PDFPatternShading(
+        shading=PDFShadingRadial(
+            coords=PDFArray([125, 350, 20, 165, 350, 30]),
+            function=PDFFunctionExponential(c0=PDFArray([1, 1, 0]), c1=PDFArray([1, 0.5, 0]), n=2, file=pdf),
+            file=pdf,
+        ),
+        file=pdf,
+    )
+    patterns.add_pattern(radial_shading)
+    content.set_colorspace("Pattern")
+    content.set_color(radial_shading)
     content.add_rect(100, 300, 100, 100)
-    content.draw(DrawType.FillNonZero)
+    content.draw(DrawType.FillStrokeNonZero)
+    content.load_state()
+
+    content.save_state()
+    axial_shading = PDFPatternShading(
+        shading=PDFShadingAxial(
+            coords=PDFArray([0, 400, 100, 300]),
+            function=PDFFunctionExponential(c0=PDFArray([1, 1, 0]), c1=PDFArray([1, 0.5, 0]), n=2, file=pdf),
+            file=pdf,
+        ),
+        file=pdf,
+    )
+    patterns.add_pattern(axial_shading)
+    content.set_colorspace("Pattern")
+    content.set_color(axial_shading)
+    content.add_rect(0, 300, 100, 100)
+    content.draw(DrawType.FillStrokeNonZero)
+    content.load_state()
+
+    content.save_state()
+    free_form_shading = PDFPatternShading(
+        shading=PDFShadingFreeForm(
+            bits_per_coordinate=8,
+            bits_per_component=8,
+            bits_per_flag=8,
+            decode=PDFArray([0, 100, 400, 500, 0, 1, 0, 1, 0, 1]),
+            vertices=bytes([0, 255, 255, 0, 0, 255, 0, 0, 255, 255, 0, 0, 0, 255, 0, 255, 255, 0, 1, 0, 0, 0, 255, 0]),
+            # function=PDFFunction(c0=PDFArray([1, 1, 0]), c1=PDFArray([1, 0.5, 0]), n=2, file=pdf),
+            file=pdf,
+        ),
+        file=pdf,
+    )
+    patterns.add_pattern(free_form_shading)
+    content.set_colorspace("Pattern")
+    content.set_color(free_form_shading)
+    content.add_rect(0, 400, 100, 100)
+    content.draw(DrawType.FillStrokeNonZero)
+    content.load_state()
+
+    content.save_state()
+    lattice_form_shading = PDFPatternShading(
+        shading=PDFShadingLatticeForm(
+            bits_per_coordinate=8,
+            bits_per_component=8,
+            vertices_per_row=2,
+            decode=PDFArray([100, 200, 400, 500, 0, 1, 0, 1, 0, 1]),
+            vertices=bytes([255, 255, 0, 0, 255, 0, 255, 255, 0, 0, 255, 0, 255, 255, 0, 0, 0, 0, 255, 0]),
+            # function=PDFFunction(c0=PDFArray([1, 1, 0]), c1=PDFArray([1, 0.5, 0]), n=2, file=pdf),
+            file=pdf,
+        ),
+        file=pdf,
+    )
+    patterns.add_pattern(lattice_form_shading)
+    content.set_colorspace("Pattern")
+    content.set_color(lattice_form_shading)
+    content.add_rect(100, 400, 100, 100)
+    content.draw(DrawType.FillStrokeNonZero)
+    content.load_state()
+
+    content.save_state()
+    coons_shading = PDFPatternShading(
+        shading=PDFShadingCoons(
+            bits_per_coordinate=8,
+            bits_per_component=8,
+            bits_per_flag=8,
+            decode=PDFArray([200, 300, 400, 500, 0, 1, 0, 1, 0, 1]),
+            vertices=bytes(
+                [0]
+                + [0, 0]
+                + [0, 20]
+                + [0, 240]
+                + [0, 255]
+                + [50, 255]
+                + [50, 255]
+                + [100, 255]
+                + [120, 230]
+                + [255, 60]
+                + [150, 0]
+                + [100, 0]
+                + [60, 0]
+                + [255, 0, 0]
+                + [255, 0, 0]
+                + [255, 255, 0]
+                + [255, 255, 0]
+                + [2, 200, 0, 200, 0, 255, 0, 255, 0, 255, 0, 255, 255, 255, 255, 255, 255, 255, 0, 0, 255, 0, 0]
+            ),
+            # function=PDFFunction(c0=PDFArray([1, 1, 0]), c1=PDFArray([1, 0.5, 0]), n=2, file=pdf),
+            file=pdf,
+        ),
+        file=pdf,
+    )
+    patterns.add_pattern(coons_shading)
+    content.set_colorspace("Pattern")
+    content.set_color(coons_shading)
+    content.add_rect(200, 400, 100, 100)
+    content.draw(DrawType.FillStrokeNonZero)
+    content.load_state()
+
+    content.save_state()
+    tensor_shading = PDFPatternShading(
+        shading=PDFShadingTensor(
+            bits_per_coordinate=8,
+            bits_per_component=8,
+            bits_per_flag=8,
+            decode=PDFArray([300, 400, 400, 500, 0, 1, 0, 1, 0, 1]),
+            vertices=bytes(
+                [0]
+                + [0, 0]
+                + [0, 10]
+                + [0, 240]
+                + [0, 255]
+                + [10, 255]
+                + [240, 255]
+                + [255, 255]
+                + [255, 240]
+                + [255, 10]
+                + [255, 0]
+                + [240, 0]
+                + [10, 0]
+                + [255, 255]
+                + [255, 0]
+                + [0, 0]
+                + [0, 255]
+                + [255, 0, 0]
+                + [255, 0, 0]
+                + [255, 255, 0]
+                + [255, 255, 0]
+            ),
+            # function=PDFFunction(c0=PDFArray([1, 1, 0]), c1=PDFArray([1, 0.5, 0]), n=2, file=pdf),
+            file=pdf,
+        ),
+        file=pdf,
+    )
+    patterns.add_pattern(tensor_shading)
+    content.set_colorspace("Pattern")
+    content.set_color(tensor_shading)
+    content.add_rect(300, 400, 100, 100)
+    content.draw(DrawType.FillStrokeNonZero)
     content.load_state()
 
     pdf.write("out.pdf")

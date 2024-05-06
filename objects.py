@@ -80,37 +80,6 @@ class PDFArray(list, PDFObject):
         return f"[ {' '.join([pdfify(i) for i in self])} ]"
 
 
-class PDFFunction(PDFDict):
-    def __init__(self,function_type:FunctionType = FunctionType.Exponential, *_, file=None):
-        super().__init__(file=file)
-        self["FunctionType"] = function_type
-        self["Domain"] = PDFArray([0,1])
-        match function_type:
-            case FunctionType.Exponential:
-                self["N"] = 1
-            case _:
-                raise NotImplementedError
-
-
-class PDFColorSpace(PDFArray):
-    def __init__(self, spaces: list, pdf_name: str, file=None):
-        self.pdf_name = pdf_name
-        super().__init__()
-        self.extend(spaces)
-
-
-class PDFColorSpaces(PDFDict):
-    def __init__(self, file=None):
-        PDFObject.__init__(self, file=file)
-        self.cs_counter = 1
-
-    def add_colorspace(self, spaces: list) -> PDFColorSpace:
-        colorspace = PDFColorSpace(spaces, f"Cs{self.cs_counter}")
-        self[f"Cs{self.cs_counter}"] = colorspace
-        self.cs_counter += 1
-        return colorspace
-
-
 class PDFStream(PDFObject):
     def __init__(self, desc: PDFDict | None = None, *, file) -> None:
         super().__init__(file=file)
@@ -127,6 +96,47 @@ class PDFStream(PDFObject):
             self.desc["Filter"] = "FlateDecode"
             self.content = zlib.compress(bytes(self.content, encoding="latin-1")).decode("latin-1")
         return f"{self.desc._get_str()}\nstream\n{self.content}\nendstream"
+
+
+class PDFFunction(PDFDict): ...
+
+
+class PDFFunctionSampled(PDFStream, PDFFunction):
+    def __init__(self, *_, size: PDFArray, bits_per_sample: int, samples: bytes, file=None):
+        super().__init__(file=file)
+        self.desc["FunctionType"] = FunctionType.Sampled
+        self.desc["Domain"] = PDFArray([0, 1])
+        self.desc["Size"] = size
+        self.desc["BitsPerSample"] = bits_per_sample
+
+
+class PDFFunctionExponential(PDFFunction):
+    def __init__(self, *_, n: int = 1, c0: PDFArray, c1: PDFArray, file=None):
+        super().__init__(file=file)
+        self["FunctionType"] = FunctionType.Exponential
+        self["Domain"] = PDFArray([0, 1])
+        self["N"] = n
+        self["C0"] = c0
+        self["C1"] = c1
+
+
+class PDFColorSpace(PDFArray):
+    def __init__(self, spaces: list, pdf_name: str):
+        self.pdf_name = pdf_name
+        super().__init__()
+        self.extend(spaces)
+
+
+class PDFColorSpaces(PDFDict):
+    def __init__(self, file=None):
+        PDFObject.__init__(self, file=file)
+        self.cs_counter = 1
+
+    def add_colorspace(self, spaces: list) -> PDFColorSpace:
+        colorspace = PDFColorSpace(spaces, f"Cs{self.cs_counter}")
+        self[f"Cs{self.cs_counter}"] = colorspace
+        self.cs_counter += 1
+        return colorspace
 
 
 class PDFFont(PDFDict):
@@ -230,7 +240,7 @@ class PDFGraphic(PDFStream):
     def set_dash_pattern(self, pattern: PDFArray, phase: int = 0):
         self.content += f"{pattern} {phase} d\n"
 
-    def add_rect(self, x: int, y: int, width: int, height: int):
+    def add_rect(self, x: float, y: float, width: float, height: float):
         self.content += f"{x} {y} {width} {height} re\n"
 
     def draw(self, draw_type: DrawType):
@@ -272,21 +282,129 @@ ET
         self.content += f"/{image.pdf_name} Do\n"
 
 
-class PDFShading(PDFDict):
-    def __init__(self, shading_type: ShadingType, file=None, **kwargs):
+class PDFShading(PDFDict): ...
+
+
+class PDFShadingFunction(PDFShading):
+    def __init__(self, *_, function: PDFFunction, file=None):
         super().__init__(file=file)
-        self["ShadingType"] = shading_type
+        self["ShadingType"] = ShadingType.Function
         self["ColorSpace"] = PDFArray(["DeviceRGB"])
-        match shading_type:
-            case ShadingType.Function:
-                ...
-            case ShadingType.Axial:
-                self["Coords"] = kwargs["coords"]
-                self["Domain"] = kwargs.get("domain", PDFArray([0, 1]))
-                self["Function"] = kwargs["function"]
-            case ShadingType.Radial:
-                self["Coords"] = kwargs["coords"]
-                self["Function"] = kwargs["function"]
+        self["Function"] = function
+
+
+class PDFShadingAxial(PDFShading):
+    def __init__(self, *_, coords: PDFArray, function: PDFFunction, file=None):
+        super().__init__(file=file)
+        self["ShadingType"] = ShadingType.Axial
+        self["ColorSpace"] = PDFArray(["DeviceRGB"])
+        self["Coords"] = coords
+        self["Function"] = function
+
+
+class PDFShadingRadial(PDFShading):
+    def __init__(self, *_, coords: PDFArray, function: PDFFunction, file=None):
+        super().__init__(file=file)
+        self["ShadingType"] = ShadingType.Radial
+        self["ColorSpace"] = PDFArray(["DeviceRGB"])
+        self["Coords"] = coords
+        self["Function"] = function
+
+
+class PDFShadingFreeForm(PDFStream, PDFShading):
+    def __init__(
+        self,
+        *_,
+        bits_per_coordinate: int,
+        bits_per_component: int,
+        bits_per_flag: int,
+        decode: PDFArray,
+        vertices: bytes,
+        function: PDFFunction | None = None,
+        file=None,
+    ):
+        super().__init__(file=file)
+        self.desc["ShadingType"] = ShadingType.FreeForm
+        self.desc["ColorSpace"] = PDFArray(["DeviceRGB"])
+        self.desc["BitsPerCoordinate"] = bits_per_coordinate
+        self.desc["BitsPerComponent"] = bits_per_component
+        self.desc["BitsPerFlag"] = bits_per_flag
+        self.desc["Decode"] = decode
+        if function is not None:
+            self.desc["Function"] = function
+        self.content = vertices.decode("latin-1")
+
+
+class PDFShadingLatticeForm(PDFStream, PDFShading):
+    def __init__(
+        self,
+        *_,
+        bits_per_coordinate: int,
+        bits_per_component: int,
+        vertices_per_row: int,
+        decode: PDFArray,
+        vertices: bytes,
+        function: PDFFunction | None = None,
+        file=None,
+    ):
+        super().__init__(file=file)
+        self.desc["ShadingType"] = ShadingType.LatticeForm
+        self.desc["ColorSpace"] = PDFArray(["DeviceRGB"])
+        self.desc["BitsPerCoordinate"] = bits_per_coordinate
+        self.desc["BitsPerComponent"] = bits_per_component
+        self.desc["VerticesPerRow"] = vertices_per_row
+        self.desc["Decode"] = decode
+        if function is not None:
+            self.desc["Function"] = function
+        self.content = vertices.decode("latin-1")
+
+
+class PDFShadingCoons(PDFStream, PDFShading):
+    def __init__(
+        self,
+        *_,
+        bits_per_coordinate: int,
+        bits_per_component: int,
+        bits_per_flag: int,
+        decode: PDFArray,
+        vertices: bytes,
+        function: PDFFunction | None = None,
+        file=None,
+    ):
+        super().__init__(file=file)
+        self.desc["ShadingType"] = ShadingType.Coons
+        self.desc["ColorSpace"] = PDFArray(["DeviceRGB"])
+        self.desc["BitsPerCoordinate"] = bits_per_coordinate
+        self.desc["BitsPerComponent"] = bits_per_component
+        self.desc["BitsPerFlag"] = bits_per_flag
+        self.desc["Decode"] = decode
+        if function is not None:
+            self.desc["Function"] = function
+        self.content = vertices.decode("latin-1")
+
+
+class PDFShadingTensor(PDFStream, PDFShading):
+    def __init__(
+        self,
+        *_,
+        bits_per_coordinate: int,
+        bits_per_component: int,
+        bits_per_flag: int,
+        decode: PDFArray,
+        vertices: bytes,
+        function: PDFFunction | None = None,
+        file=None,
+    ):
+        super().__init__(file=file)
+        self.desc["ShadingType"] = ShadingType.Tensor
+        self.desc["ColorSpace"] = PDFArray(["DeviceRGB"])
+        self.desc["BitsPerCoordinate"] = bits_per_coordinate
+        self.desc["BitsPerComponent"] = bits_per_component
+        self.desc["BitsPerFlag"] = bits_per_flag
+        self.desc["Decode"] = decode
+        if function is not None:
+            self.desc["Function"] = function
+        self.content = vertices.decode("latin-1")
 
 
 class PDFPattern(PDFGraphic, PDFColor):
@@ -299,13 +417,14 @@ class PDFPattern(PDFGraphic, PDFColor):
 
 
 class PDFPatternShading(PDFPattern):
-    def __init__(self, shading_type: ShadingType, file=None, **kwargs):
+    def __init__(self, shading: PDFShading, file=None, **kwargs):
         PDFStream.__init__(self, file=file)
         PDFPattern.__init__(self)
         self.export_seperate = True
         self.desc["PatternType"] = PatternType.Shading
-        self.desc["Shading"] = PDFShading(shading_type, file=file, **kwargs)
-        self.desc["Matrix"] = kwargs["matrix"]
+        self.desc["Shading"] = shading
+        if matrix := kwargs.get("matrix"):
+            self.desc["Matrix"] = matrix
 
     def _get_str(self) -> str:
         return self.desc._get_str()
