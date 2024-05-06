@@ -56,7 +56,9 @@ def main():
     content.save_state()
     cs = page.get_colorspaces()
     rgb = cs.add_colorspace(["Pattern", "DeviceRGB"])
-    gray_tiling = PDFPatternTiling(PDFArray([0, 0, 20, 20]), paint_type=PaintType.Uncoloured, file=pdf)
+    gray_tiling = PDFPatternTiling(
+        PDFArray([0, 0, 20, 20]), paint_type=PaintType.Uncoloured, file=pdf
+    )
     gray_tiling.save_state()
     gray_tiling.set_width(2)
     gray_tiling.add_rect(5, 5, 10, 10)
@@ -71,13 +73,17 @@ def main():
     content.save_state()
 
     shading = PDFPatternShading(
-        shading_type=ShadingType.Axial, coords=PDFArray([0, 0, 1, 0]), function=PDFFunction(file=pdf), file=pdf
+        shading_type=ShadingType.Radial,
+        coords=PDFArray([0, 0, 1, 0, 0, 50]),
+        function=PDFFunction(file=pdf),
+        matrix=PDFArray([0.50002, 0, 0, 0.500021, 224.389, 397.414]),
+        file=pdf,
     )
     patterns.add_pattern(shading)
     content.set_colorspace("Pattern")
     content.set_color(shading)
     content.add_rect(100, 300, 100, 100)
-    content.draw(DrawType.FillStrokeNonZero)
+    content.draw(DrawType.FillNonZero)
     content.load_state()
 
     pdf.write("out.pdf")

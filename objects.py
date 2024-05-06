@@ -276,13 +276,16 @@ class PDFShading(PDFDict):
     def __init__(self, shading_type: ShadingType, file=None, **kwargs):
         super().__init__(file=file)
         self["ShadingType"] = shading_type
-        self["ColorSpace"] = "DeviceRGB"
+        self["ColorSpace"] = PDFArray(["DeviceRGB"])
         match shading_type:
             case ShadingType.Function:
                 ...
             case ShadingType.Axial:
                 self["Coords"] = kwargs["coords"]
                 self["Domain"] = kwargs.get("domain", PDFArray([0, 1]))
+                self["Function"] = kwargs["function"]
+            case ShadingType.Radial:
+                self["Coords"] = kwargs["coords"]
                 self["Function"] = kwargs["function"]
 
 
@@ -302,6 +305,10 @@ class PDFPatternShading(PDFPattern):
         self.export_seperate = True
         self.desc["PatternType"] = PatternType.Shading
         self.desc["Shading"] = PDFShading(shading_type, file=file, **kwargs)
+        self.desc["Matrix"] = kwargs["matrix"]
+
+    def _get_str(self) -> str:
+        return self.desc._get_str()
 
 
 class PDFPatternTiling(PDFPattern):
