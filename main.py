@@ -5,7 +5,29 @@ from pdf import PDF
 
 
 def main():
-    pdf = PDF(author="Cdr_Johannsen", subject="Test Page", keywords="Test,Hello World")
+    prefs = PDFDict(
+        {
+            "HideToolbar": False,
+            "HideMenubar": False,
+            "HideWindowUI": False,
+            "FitWindow": True,
+            "CenterWindow": True,
+            "DisplayDocTitle": True,
+            "Duplex": "DuplexFlipLongEdge",
+        }
+    )
+    pdf = PDF(
+        filename="out.pdf",
+        title="Test Title",
+        author="Cdr_Johannsen",
+        subject="Test Page",
+        keywords="Test,Hello World",
+        creator="python",
+        viewer_preferences=prefs,
+        page_layout="TwoColumnLeft",
+        page_mode="UseThumbs",
+        lang=PDFString("de-DE"),
+    )
     page = pdf.get_page(0)
     content = page.get_content()
     images = page.get_images()
@@ -70,17 +92,51 @@ def main():
     content.load_state()
 
     content.save_state()
-    function_shading = PDFPatternShading(
+    function_shading_sampled = PDFPatternShading(
         shading=PDFShadingFunction(
-            function=PDFFunctionSampled(size=PDFArray([255]), bits_per_sample=8, samples=bytes([]), file=pdf),
+            function=PDFFunctionSampled(
+                size=PDFArray([3, 3]),
+                bits_per_sample=8,
+                samples=bytes(
+                    [255, 255, 0]
+                    + [255, 127, 0]
+                    + [255, 255, 0]
+                    + [255, 127, 0]
+                    + [255, 255, 0]
+                    + [255, 127, 0]
+                    + [255, 255, 0]
+                    + [255, 127, 0]
+                    + [255, 255, 0]
+                ),
+                file=pdf,
+            ),
+            matrix=PDFArray([100, 0, 0, 100, 0, 500]),
             file=pdf,
         ),
         file=pdf,
     )
-    patterns.add_pattern(function_shading)
+    patterns.add_pattern(function_shading_sampled)
     content.set_colorspace("Pattern")
-    content.set_color(function_shading)
+    content.set_color(function_shading_sampled)
     content.add_rect(0, 500, 100, 100)
+    content.draw(DrawType.FillStrokeNonZero)
+    content.load_state()
+
+    content.save_state()
+    function_shading_ps = PDFPatternShading(
+        shading=PDFShadingFunction(
+            function=PDFFunctionPostScript(
+                script="180.0 mul sin\n2.0 div\nexch 180.0 mul sin\n2.0 div\nadd\ndup\n0.5 mul\n0", file=pdf
+            ),
+            matrix=PDFArray([100, 0, 0, 100, 100, 500]),
+            file=pdf,
+        ),
+        file=pdf,
+    )
+    patterns.add_pattern(function_shading_ps)
+    content.set_colorspace("Pattern")
+    content.set_color(function_shading_ps)
+    content.add_rect(100, 500, 100, 100)
     content.draw(DrawType.FillStrokeNonZero)
     content.load_state()
 
@@ -237,7 +293,7 @@ def main():
     content.draw(DrawType.FillStrokeNonZero)
     content.load_state()
 
-    pdf.write("out.pdf")
+    pdf.write()
 
 
 if __name__ == "__main__":

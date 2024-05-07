@@ -71,6 +71,25 @@ class PDFString(str, PDFObject):
         return f"({super().__str__()})"
 
 
+class PDFHex(PDFObject):
+    def __init__(self, content: int | str | bytes) -> None:
+        self.export_seperate = False
+        if type(content) == int:
+            self.content = f"{content:X}"
+        elif type(content) == str:
+            self.content = content.encode("latin-1").hex().upper()
+        elif type(content) == bytes:
+            self.content = content.hex().upper()
+        else:
+            raise NotImplementedError
+
+    def __str__(self) -> str:
+        return self._get_str()
+
+    def _get_str(self) -> str:
+        return f"<{self.content}>"
+
+
 class PDFArray(list, PDFObject):
     def __init__(self, to_list=[], file=None) -> None:
         list.__init__(self, to_list)
@@ -105,9 +124,11 @@ class PDFFunctionSampled(PDFStream, PDFFunction):
     def __init__(self, *_, size: PDFArray, bits_per_sample: int, samples: bytes, file=None):
         super().__init__(file=file)
         self.desc["FunctionType"] = FunctionType.Sampled
-        self.desc["Domain"] = PDFArray([0, 1])
+        self.desc["Domain"] = PDFArray([0, 1, 0, 1])
         self.desc["Size"] = size
+        self.desc["Range"] = PDFArray([0, 1, 0, 1, 0, 1])
         self.desc["BitsPerSample"] = bits_per_sample
+        self.content = samples.decode("latin-1")
 
 
 class PDFFunctionExponential(PDFFunction):
@@ -118,6 +139,15 @@ class PDFFunctionExponential(PDFFunction):
         self["N"] = n
         self["C0"] = c0
         self["C1"] = c1
+
+
+class PDFFunctionPostScript(PDFStream, PDFFunction):
+    def __init__(self, *_, script: str, file=None):
+        super().__init__(file=file)
+        self.desc["FunctionType"] = FunctionType.PostScript
+        self.desc["Domain"] = PDFArray([0, 1, 0, 1])
+        self.desc["Range"] = PDFArray([0, 1, 0, 1, 0, 1])
+        self.content = f"{{\n{script}\n}}"
 
 
 class PDFColorSpace(PDFArray):
@@ -286,11 +316,12 @@ class PDFShading(PDFDict): ...
 
 
 class PDFShadingFunction(PDFShading):
-    def __init__(self, *_, function: PDFFunction, file=None):
+    def __init__(self, *_, function: PDFFunction, matrix: PDFArray, file=None):
         super().__init__(file=file)
         self["ShadingType"] = ShadingType.Function
         self["ColorSpace"] = PDFArray(["DeviceRGB"])
         self["Function"] = function
+        self["Matrix"] = matrix
 
 
 class PDFShadingAxial(PDFShading):
@@ -464,7 +495,7 @@ class PDFPatterns(PDFDict):
 
 
 class PDFPage(PDFDict):
-    def __init__(self, file, parent, *, unit):
+    def __init__(self, file, parent, *, unit: float):
         PDFObject.__init__(self, file=file)
         self.images = PDFImages(file=file)
         self.patterns = PDFPatterns(file=file)
@@ -473,6 +504,15 @@ class PDFPage(PDFDict):
         self["Parent"] = parent
         self["UserUnit"] = unit
         self["MediaBox"] = PDFArray([0, 0, 595.303937007874, 841.889763779528])
+        # CropBox
+        # BleedBox
+        # TrimBox
+        # ArtBox
+        # Rotate
+        # Thumb
+        # Annots
+        # Metadata
+        # StructParents
         desc = PDFDict()
         self["Contents"] = PDFGraphic(desc, file=file)
         self["Resources"] = PDFDict(
