@@ -24,6 +24,9 @@ class DrawType(Enum):
     CloseFillStrokeOddEven = "b*\n"
     NoOp = "n\n"
 
+class ClipType(Enum):
+    NonZero = "W\n"
+    OddEven = "W*\n"
 
 class FunctionType(Enum):
     Sampled = 0

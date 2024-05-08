@@ -273,7 +273,7 @@ class PDFGraphic(PDFStream):
     def add_rect(self, x: float, y: float, width: float, height: float):
         self.content += f"{x} {y} {width} {height} re\n"
 
-    def draw(self, draw_type: DrawType):
+    def draw(self, draw_type: DrawType | ClipType):
         self.content += draw_type.value
 
     def add_text(self, x: float, y: float, text: str, font: PDFFont, size: int = 12):
@@ -522,6 +522,8 @@ class PDFPage(PDFDict):
                 "Pattern": self.patterns,
                 "ColorSpace": self.colorspaces,
                 "ProcSet": PDFArray(["PDF", "Text", "ImageB", "ImageC", "ImageI"]),
+                # ExtGState
+                # Shading
             },
             file=file,
         )
