@@ -37,7 +37,7 @@ def main():
     content.set_line_cap(LineCap.Round)
     content.set_line_join(LineJoin.Round)
     content.set_dash_pattern(PDFArray([10, 5, 0.01, 5]), 5)
-    content.add_rect(100, 40, 40, 40)
+    content.add_rect(100, 30, 40, 40)
     content.draw(DrawType.CloseFillStrokeNonZero)
     helvetica = pdf.fonts.add_font("Helvetica")
     courier = pdf.fonts.add_font("Courier")
