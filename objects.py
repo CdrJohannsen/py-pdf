@@ -219,6 +219,12 @@ class PDFImages(PDFDict):
         return image
 
 
+class PDFGraphicState(PDFDict):
+    def __init__(self, to_dict={}, file=None):
+        super().__init__(to_dict, file)
+        self["Type"] = "ExtGState"
+
+
 class PDFGraphic(PDFStream):
     def save_state(self):
         self.content += "q\n"
@@ -276,14 +282,64 @@ class PDFGraphic(PDFStream):
     def draw(self, draw_type: DrawType | ClipType):
         self.content += draw_type.value
 
+    def start_text(self):
+        self.content += "BT\n"
+
+    def end_text(self):
+        self.content += "ET\n"
+
+    def show_text(
+        self,
+        text: str | PDFArray,
+        newline: bool = False,
+        word_spacing: float | None = None,
+        char_spacing: float | None = None,
+    ):
+        if type(text) == str:
+            if word_spacing is not None and char_spacing is not None and newline:
+                self.content += f'{word_spacing} {char_spacing} ({text}) "\n'
+            else:
+                self.content += f"({text}) {'Tj' if not newline else '\x27'}\n"
+        else:
+            self.content += f"{text} TJ\n"
+
     def add_text(self, x: float, y: float, text: str, font: PDFFont, size: int = 12):
-        self.content += f"""BT
-/{font.pdf_name} 
-{size} Tf
-{x} {y} Td
-({text}) Tj
-ET
-"""
+        self.start_text()
+        self.set_font(font, size)
+        self.set_text_matrix((1, 0, 0, 1, x, y))
+        self.show_text(text)
+        self.end_text()
+
+    def set_char_spacing(self, spacing: float):
+        self.content += f"{spacing} Tc\n"
+
+    def set_word_spacing(self, spacing: float):
+        self.content += f"{spacing} Tw\n"
+
+    def set_text_h_scaling(self, scaling: float):
+        self.content += f"{scaling} Tz\n"
+
+    def set_leading(self, leading: float):
+        self.content += f"{leading} TL\n"
+
+    def set_font(self, font: PDFFont, size: float):
+        self.content += f"/{font.pdf_name} {size} Tf\n"
+
+    def set_text_mode(self, mode: TextMode):
+        self.content += f"{mode.value} Tr\n"
+
+    def set_text_rise(self, rise: float):
+        self.content += f"{rise} Ts\n"
+
+    def add_newline(self, coords: tuple[float, float] | None = None, set_leading: bool = False):
+        if coords is None:
+            self.content += "T*\n"
+        else:
+            self.content += f"{coords[0]} {coords[1]} {'TD' if set_leading else 'Td'}\n"
+
+    def set_text_matrix(self, matrix: tuple[float, float, float, float, float, float]):
+        self.content += " ".join(map(str, matrix))
+        self.content += " Tm\n"
 
     def start_path(self, start: tuple[float, float]):
         self.content += f"{start[0]} {start[1]} m\n"

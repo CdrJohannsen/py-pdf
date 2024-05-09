@@ -24,9 +24,11 @@ class DrawType(Enum):
     CloseFillStrokeOddEven = "b*\n"
     NoOp = "n\n"
 
+
 class ClipType(Enum):
     NonZero = "W\n"
     OddEven = "W*\n"
+
 
 class FunctionType(Enum):
     Sampled = 0
@@ -59,6 +61,17 @@ class ShadingType(Enum):
     LatticeForm = 5
     Coons = 6
     Tensor = 7
+
+
+class TextMode(Enum):
+    Fill = 0
+    Stroke = 1
+    FillStroke = 2
+    Neither = 3
+    FillClip = 4
+    StrokeClip = 5
+    FillStrokeClip = 6
+    Clip = 7
 
 
 class PDFUnit(Enum):
